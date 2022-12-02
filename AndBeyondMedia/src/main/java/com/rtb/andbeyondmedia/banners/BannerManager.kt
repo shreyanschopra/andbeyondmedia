@@ -2,15 +2,13 @@ package com.rtb.andbeyondmedia.banners
 
 import android.content.Context
 import android.os.CountDownTimer
-import android.util.Log
 import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.admanager.AdManagerAdRequest
+import com.rtb.andbeyondmedia.common.AdRequest
 import java.util.*
 import kotlin.math.ceil
 
-internal const val TAG = "Ads"
 
-internal class AdManager(private val context: Context, private val managerListener: AdManagerListener) {
+internal class BannerManager(private val context: Context, private val managerListener: AdManagerListener) {
     private var config: Config? = null
     private var currentConfig: Config? = null
     private lateinit var adSizesToBeTaken: ArrayList<AdSize>
@@ -48,17 +46,15 @@ internal class AdManager(private val context: Context, private val managerListen
         this.currentConfig = config.copy().apply {
             lastRefreshAt = Date().time
         }
-        if (config.followSize == 1) {
+        if (config.followSize == 1 && config.toSizes().isNotEmpty()) {
             adSizesToBeTaken = getSize(config.toSizes())
         }
     }
 
     internal fun refresh(active: Int = 1, forced: Boolean = false) {
-        Log.d(TAG, "refresh :only asked: ${if (active == 1) "Active" else "Passive"}")
         val currentTimeStamp = Date().time
         val differenceOfLastRefresh = ceil((currentTimeStamp - (currentConfig?.lastRefreshAt ?: 0)).toDouble() / 1000.00).toInt()
         fun refreshAd() {
-            Log.d(TAG, "refresh : ${if (active == 1) "Active" else "Passive"}")
             currentConfig?.lastRefreshAt = currentTimeStamp
             managerListener.attachAdView(getAdUnit(forced), adSizesToBeTaken)
             loadAd(active)
@@ -105,7 +101,7 @@ internal class AdManager(private val context: Context, private val managerListen
     }
 
     private fun loadAd(active: Int) {
-        val adRequest = AdManagerAdRequest.Builder().apply {
+        val adRequest = AdRequest().Builder().apply {
             addCustomTargeting("adunit", pubAdUnitName)
             addCustomTargeting("active", active.toString())
             addCustomTargeting("refresh", refreshCount.toString())
@@ -161,7 +157,6 @@ internal class AdManager(private val context: Context, private val managerListen
     private fun getAdUnit(forced: Boolean): String {
         val networkName = if (currentConfig?.networkCode.isNullOrEmpty()) currentConfig?.networkId else String.format("%s,%s", currentConfig?.networkId, currentConfig?.networkCode)
         val adUnit = String.format("/%s/%s-%s-1", networkName, currentConfig?.affiliatedId.toString(), currentConfig?.type ?: "", if (forced) currentConfig?.hijack?.number ?: 0 else currentConfig?.position ?: 0)
-        Log.d(TAG, "getAdUnit: $adUnit")
         return adUnit
     }
 
@@ -170,10 +165,10 @@ internal class AdManager(private val context: Context, private val managerListen
             null
         } else {
             var maxAdSize = adSizesToBeTaken[0]
-            var maxArea = 0
+            var maxWidth = 0
             for (adSize in adSizesToBeTaken) {
-                if (maxArea < adSize.height * adSize.width) {
-                    maxArea = adSize.height * adSize.width
+                if (maxWidth < adSize.width) {
+                    maxWidth = adSize.width
                     maxAdSize = adSize
                 }
             }
@@ -187,9 +182,10 @@ object AdTypes {
     const val ADAPTIVE = "ADAPTIVE"
     const val INLINE = "INLINE"
     const val STICKY = "STICKY"
-    const val INREAD = "INREAD"
-    const val INTER = "INTER"
-    const val REWARD = "REWARD"
-    const val NATIVE = "NATIVE"
+
+    /* const val INREAD = "INREAD"
+     const val INTER = "INTER"
+     const val REWARD = "REWARD"
+     const val NATIVE = "NATIVE"*/
     const val OTHER = "OTHER"
 }
